@@ -1,0 +1,46 @@
+import telebot
+import openai
+import os
+
+# Lấy các khóa API từ biến môi trường
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Khởi tạo client OpenAI mới
+client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
+# Khởi tạo bot Telegram
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    """Handles the /start and /help commands."""
+    bot.reply_to(message, "Chào bạn! Tôi là một bot chatbot AI. Hãy gõ bất kỳ câu hỏi nào để tôi trả lời nhé.")
+
+@bot.message_handler(func=lambda message: True)
+def reply_with_chatgpt(message):
+    """Handles all text messages and replies using the OpenAI API."""
+    try:
+        # Use the new method to create a chat completion
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": message.text}]
+        )
+        # Extract the content of the reply
+        reply = response.choices[0].message.content
+        bot.reply_to(message, reply)
+
+    except openai.AuthenticationError:
+        bot.reply_to(message, "Lỗi xác thực: Khóa API OpenAI không hợp lệ. Vui lòng kiểm tra lại biến môi trường của bạn.")
+    except Exception as e:
+        bot.reply_to(message, f"Lỗi: {e}. Vui lòng thử lại sau.")
+
+if __name__ == "__main__":
+    # Check if the environment variables are set
+    if not TELEGRAM_TOKEN or not OPENAI_API_KEY:
+        print("❌ Error: TELEGRAM_TOKEN or OPENAI_API_KEY are not set in environment variables.")
+        print("Please configure them on your Render dashboard.")
+    else:
+        print("✅ Telegram bot has started...")
+        bot.infinity_polling()
+
